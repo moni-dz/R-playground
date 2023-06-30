@@ -15,9 +15,20 @@
   outputs = { self, parts, nixpkgs, jupyenv, ... }@inputs: parts.lib.mkFlake { inherit inputs; } {
     systems = [ "x86_64-linux" "x86_64-darwin" ];
 
-    perSystem = { pkgs, system, ... }:
+    perSystem = { self', pkgs, system, ... }:
       let
         inherit (jupyenv.lib.${system}) mkJupyterlabNew;
+
+        minimalMkShell = pkgs.mkShell.override {
+          stdenv = pkgs.stdenvNoCC.override {
+            cc = null;
+            preHook = "";
+            allowedRequisites = null;
+            initialPath = [ pkgs.toybox ];
+            shell = "${pkgs.bash}/bin/bash";
+            extraNativeBuildInputs = [ ];
+          };
+        };
 
         rPackagesFrom = rp: __attrValues {
           inherit (rp)
@@ -25,7 +36,9 @@
             easystats
             littler
             languageserver
-            ggdark;
+            ggdark
+            ggthemes
+            svglite;
         };
 
         jupyterlab = mkJupyterlabNew ({ ... }: {
@@ -50,7 +63,7 @@
           type = "app";
         };
 
-        devShells.default = pkgs.mkShellNoCC {
+        devShells.default = minimalMkShell {
           packages = [
             (pkgs.rWrapper.override { packages = rPackagesFrom pkgs.rPackages; })
           ];
